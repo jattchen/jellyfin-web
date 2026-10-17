@@ -10,6 +10,10 @@ export const GROUPED_VIDEO_FEATURE = 'grouped-video-v1';
 export const RESULT_LIMIT = 3;
 export const VIDEO_LIMIT = 3;
 export const HITS_PER_VIDEO = 5;
+/** Ranked moments shown before the "more" disclosure. */
+export const TOP_VISIBLE = 5;
+export const THUMB_BUSY_RETRY_MS = 700;
+export const THUMB_BUSY_RETRIES = 8;
 export const CLIENT_QUERY_ID_MAX = 80;
 export const QUERY_MAX_LENGTH = 1000;
 export const CAPABILITIES_TIMEOUT_MS = 10000;

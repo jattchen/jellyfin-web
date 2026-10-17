@@ -91,10 +91,20 @@ export interface DisplayHit {
     startTicks: number
     endTicks: number
     transcript?: string
+    /** Reference score kept for ordering only; never rendered. */
+    score: number
+    representation?: 'jointAudioVideo' | 'transcriptText'
+}
+
+export interface RankedHit extends DisplayHit {
+    /** 1-based position after ranking every listed film together. */
+    rank: number
 }
 
 export interface ItemCard {
     title: string
+    series?: string
+    episodeCode?: string
     posterBlob?: Blob
     runtimeTicks?: number
 }
@@ -106,6 +116,12 @@ export type ItemLoad =
 
 export interface DisplayCard {
     title: string
+    series?: string
+    episodeCode?: string
     posterUrl?: string
     runtimeTicks?: number
 }
+
+export type ThumbState =
+    | { status: 'queued' | 'loading' | 'none' | 'failed' | 'busy' }
+    | { status: 'image'; url: string };

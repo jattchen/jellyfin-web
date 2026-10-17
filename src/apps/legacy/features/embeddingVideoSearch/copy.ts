@@ -5,20 +5,24 @@ export interface SegmentCopy {
     searchAction: string
     unsubmitted: string
     title: string
-    intro: string
+    summary: (films: number, moments: number) => string
+    caveat: string
     searching: string
     checkingPlayer: string
-    playerIdle: string
     playerUnsupported: string
     openNative: string
     fullscreen: string
-    previewHint: string
-    previewLoading: string
-    previewBusy: string
-    previewMissing: string
+    best: string
+    rank: (rank: number) => string
+    playFrom: (range: string) => string
+    nowPlaying: string
+    kind: (representation: string | undefined) => string
+    thumbLoading: string
+    thumbMissing: string
+    timeline: (title: string) => string
     timelineUnknown: string
-    weakShow: (count: number) => string
-    weakHide: (count: number) => string
+    moreShow: (count: number) => string
+    moreHide: string
     partialItem: string
     fallbackTitle: string
     retry: string
@@ -30,24 +34,28 @@ export interface SegmentCopy {
 }
 
 const zh: SegmentCopy = {
-    nameSearch: '名称搜索',
+    nameSearch: '名称匹配',
     searchAction: '查找画面与对白',
     unsubmitted: '这句话还没提交。下面仍是上次的结果。',
-    title: '相关片段候选',
-    intro: '描述画面或对白的含义，提交后按整部影片查看。点一个时间会从原片的该处继续播放。只有已建立索引的片段可以搜索。候选可能有误。',
+    title: '相关片段',
+    summary: (films, moments) => `${films} 部影片中的 ${moments} 个候选，按接近程度排序`,
+    caveat: '候选可能有误，“最接近”不代表一定匹配。点任一片段，从原片该处继续播放。',
     searching: '正在查找画面与对白…',
     checkingPlayer: '正在确认这个浏览器能不能在页面里播放。',
-    playerIdle: '选择一个时间后，会在这里从原片的该处继续播放。',
     playerUnsupported: '这个浏览器不能在页面里直接播放。可以改用原来的播放器，从记下的时间继续。',
     openNative: '用原来的播放器打开',
     fullscreen: '全屏',
-    previewHint: '悬停、聚焦或点按一个时间，查看该处的文字。画面要等这一帧的预览，不会用海报代替。',
-    previewLoading: '正在取这一时刻的画面。',
-    previewBusy: '这一帧正忙，请稍后再试。',
-    previewMissing: '没有这一时刻的画面。不会用海报代替。',
+    best: '最接近',
+    rank: rank => `第 ${rank} 名`,
+    playFrom: range => `从 ${range} 播放`,
+    nowPlaying: '正在播放',
+    kind: representation => (representation === 'transcriptText' ? '对白' : '画面与声音'),
+    thumbLoading: '正在取这一时刻的画面',
+    thumbMissing: '没有这一时刻的画面',
+    timeline: title => `《${title}》中的候选位置`,
     timelineUnknown: '还不知道整部有多长，所以这里只列出时间。',
-    weakShow: count => `可能相关（${count}）`,
-    weakHide: count => `收起可能相关（${count}）`,
+    moreShow: count => `更多候选（${count}）`,
+    moreHide: '收起更多候选',
     partialItem: '仅部分内容可搜索',
     fallbackTitle: '影片',
     retry: '重试',
@@ -143,24 +151,28 @@ const zh: SegmentCopy = {
 };
 
 const en: SegmentCopy = {
-    nameSearch: 'Name search',
+    nameSearch: 'Title matches',
     searchAction: 'Search picture and dialogue',
     unsubmitted: 'This sentence is not submitted. The moments below are still the previous result.',
-    title: 'Related moment candidates',
-    intro: 'Describe a picture or dialogue, then submit to see hits by film. Choosing a time continues from that point in the full video. Only indexed moments can be searched. Candidates may be wrong.',
+    title: 'Related moments',
+    summary: (films, moments) => `${moments} candidates from ${films} ${films === 1 ? 'title' : 'titles'}, closest first`,
+    caveat: 'Candidates may be wrong; “Closest” is not a guaranteed match. Choose any moment to continue the full video from there.',
     searching: 'Looking for picture and dialogue…',
     checkingPlayer: 'Checking whether this browser can play on the page.',
-    playerIdle: 'Choose a time to continue from that point in the full video.',
     playerUnsupported: 'This browser cannot play on the page. The original player can continue from the noted time.',
     openNative: 'Open in the original player',
     fullscreen: 'Full screen',
-    previewHint: 'Hover, focus, or tap a time to read its words. The picture waits for that frame and is not the poster.',
-    previewLoading: 'Fetching the picture at this time.',
-    previewBusy: 'This frame is busy. Try again later.',
-    previewMissing: 'No picture is available at this time. The poster is not used instead.',
+    best: 'Closest',
+    rank: rank => `No. ${rank}`,
+    playFrom: range => `Play from ${range}`,
+    nowPlaying: 'Now playing',
+    kind: representation => (representation === 'transcriptText' ? 'Dialogue' : 'Picture and sound'),
+    thumbLoading: 'Fetching the picture at this time',
+    thumbMissing: 'No picture at this time',
+    timeline: title => `Candidate positions in ${title}`,
     timelineUnknown: 'The full length is unknown, so only the times are listed.',
-    weakShow: count => `Possibly related (${count})`,
-    weakHide: count => `Hide possibly related (${count})`,
+    moreShow: count => `More candidates (${count})`,
+    moreHide: 'Hide more candidates',
     partialItem: 'Only part of this title is searchable',
     fallbackTitle: 'Video',
     retry: 'Try again',

@@ -7,7 +7,7 @@ import axios from 'axios';
 
 import { ITEM_TIMEOUT_MS } from './constants';
 import { officialItemRequest } from './guid';
-import { itemLabel, type ItemNameSource } from './presentation';
+import { episodeCode, itemLabel, type ItemNameSource } from './presentation';
 import { isAbortError } from './transport';
 import type { ItemCard, ItemLoad } from './types';
 import { urlContainsSecret, urlOmitsCredentials } from './urlSafety';
@@ -110,9 +110,18 @@ export async function loadOfficialItem(
             return { status: 'inaccessible' };
         }
 
+        const source = item as ItemNameSource;
         const card: ItemCard = {
-            title: itemLabel(item as ItemNameSource, '')
+            title: itemLabel(source, '')
         };
+        const series = source.SeriesName?.trim();
+        if (series) {
+            card.series = series;
+        }
+        const code = episodeCode(source);
+        if (code) {
+            card.episodeCode = code;
+        }
         const runtime = item.RunTimeTicks;
         if (typeof runtime === 'number' && Number.isSafeInteger(runtime) && runtime > 0) {
             card.runtimeTicks = runtime;

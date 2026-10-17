@@ -232,7 +232,8 @@ describe('search flow', () => {
         expect(result.view.related.map(entry => entry.score)).toEqual([0.2, 0.9, 0.4, 0.8]);
         expect(result.view.weak).toHaveLength(1);
         expect(result.view.notices).toEqual(['partial-index']);
-        expect(toDisplayHit(result.view.related[0])).not.toHaveProperty('score');
+        // Kept unchanged for ordering only; the page never renders it.
+        expect(toDisplayHit(result.view.related[0]).score).toBe(0.2);
         expect(noticesFor({
             availability: 'available',
             indexComplete: false,

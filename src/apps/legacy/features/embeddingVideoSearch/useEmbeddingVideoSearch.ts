@@ -1,5 +1,5 @@
 import type { Api } from '@jellyfin/sdk';
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { playbackManager } from 'components/playback/playbackmanager';
 import { useApi } from 'hooks/useApi';
@@ -14,11 +14,12 @@ import { issuePlayTicket, retirePlayGate, runScopedPlay, ticketStillCurrent, typ
 import { fetchSegmentPreview, keepPreview } from './previewFetch';
 import { openSessionForHit, runHitPlayback } from './runHitPlayback';
 import { applyPlayOutcome } from './results';
-import { toDisplayHit, weakDisclosure } from './presentation';
+import { rankHits, toDisplayHit, weakDisclosure } from './presentation';
 import { executeEmbeddingSearch } from './searchSession';
 import { createClientQueryId, readSegment } from './searchRun';
+import { createThumbnailQueue, type ThumbQueue } from './thumbnailQueue';
 import { createSdkTransport } from './transport';
-import type { DisplayCard, DisplayHit, PlayRefusal, SearchHitModel, SegmentViewState } from './types';
+import type { DisplayCard, ItemCard, PlayRefusal, RankedHit, SearchHitModel, SegmentViewState, ThumbState } from './types';
 import { canRetryView, sameSession, searchScopeKey, shouldApplyResult, viewForScope, type SessionStamp } from './viewState';
 
 interface NativePlayback {
@@ -87,7 +88,7 @@ function revokeUrls(urls: string[]) {
     }
 }
 
-function cardsFromBlobs(loaded: ReadonlyMap<string, { title: string; posterBlob?: Blob; runtimeTicks?: number }>): { cards: Map<string, DisplayCard>; urls: string[] } {
+function cardsFromBlobs(loaded: ReadonlyMap<string, ItemCard>): { cards: Map<string, DisplayCard>; urls: string[] } {
     const cards = new Map<string, DisplayCard>();
     const urls: string[] = [];
     for (const [key, card] of loaded) {
@@ -99,6 +100,8 @@ function cardsFromBlobs(loaded: ReadonlyMap<string, { title: string; posterBlob?
 
         cards.set(key, {
             title: card.title,
+            series: card.series,
+            episodeCode: card.episodeCode,
             posterUrl,
             runtimeTicks: card.runtimeTicks
         });
@@ -115,27 +118,22 @@ export interface PlayingMoment {
     durationTicks?: number
 }
 
-export interface PreviewModel {
-    segmentId: string
-    status: 'loading' | 'image' | 'none' | 'busy' | 'failed'
-    url?: string
-}
-
 export interface EmbeddingVideoSearchModel {
     view: SegmentViewState
-    related: DisplayHit[]
-    weak: DisplayHit[]
+    /** Every listed moment across films, best first. */
+    ranked: RankedHit[]
     cards: ReadonlyMap<string, DisplayCard>
-    weakOpen: boolean
-    toggleWeak: () => void
+    thumbs: ReadonlyMap<string, ThumbState>
+    moreOpen: boolean
+    toggleMore: () => void
     onPlay: (segmentId: string) => void
+    /** Moves this moment's frame to the front of the loading queue. */
     onPreview: (segmentId: string) => void
     retry: () => void
     canRetry: boolean
     busySegmentId?: string
     playNote?: PlayRefusal
     playing?: PlayingMoment
-    preview?: PreviewModel
     mse: boolean | null
     videoRef: RefObject<HTMLVideoElement | null>
 }
@@ -193,27 +191,26 @@ export function useEmbeddingVideoSearch(
     const requestRef = useRef('');
     const playGateRef = useRef<PlayGate>({ generation: 0, scope: '' });
     const playAbortRef = useRef<AbortScope | undefined>(undefined);
-    const previewAbortRef = useRef<AbortScope | undefined>(undefined);
-    const previewKeyRef = useRef('');
+    const thumbQueueRef = useRef<ThumbQueue | undefined>(undefined);
     const viewRef = useRef<SegmentViewState>({ phase: 'idle' });
     const playbackRef = useRef<ActivePlayback | undefined>(undefined);
     const hlsRef = useRef<HlsLike | undefined>(undefined);
-    const previewUrlsRef = useRef<string[]>([]);
     const [playing, setPlaying] = useState<PlayingMoment | undefined>(undefined);
-    const [preview, setPreview] = useState<PreviewModel | undefined>(undefined);
+    const [thumbs, setThumbs] = useState<Map<string, ThumbState>>(new Map());
     const [mse, setMse] = useState<boolean | null>(null);
 
     if (appliedScope !== scope) {
         requestRef.current = '';
         playGateRef.current = retirePlayGate(playGateRef.current, scope);
         playAbortRef.current?.abort();
-        previewAbortRef.current?.abort();
+        thumbQueueRef.current?.dispose();
+        thumbQueueRef.current = undefined;
         setAppliedScope(scope);
         setWeakOpen(open => weakDisclosure(open, true));
         setPlayNote(undefined);
         setBusySegmentId(undefined);
         setPlaying(undefined);
-        setPreview(undefined);
+        setThumbs(new Map());
         setCards(new Map());
         setView(viewForScope({
             query,
@@ -225,6 +222,10 @@ export function useEmbeddingVideoSearch(
     const hits = view.phase === 'ready' ? [...view.related, ...view.weak] : [];
     hitsRef.current = hits;
     viewRef.current = view;
+    const ranked = useMemo(() => (
+        view.phase === 'ready' ? rankHits(view.related.map(toDisplayHit), view.weak.map(toDisplayHit)) : []
+    ), [view]);
+    const thumbOrder = ranked.map(hit => hit.segmentId).join('\n');
 
     useEffect(() => {
         const currentApi = apiRef.current;
@@ -303,11 +304,55 @@ export function useEmbeddingVideoSearch(
             if (session && currentApi) {
                 void deletePlaybackSession(currentApi, session);
             }
-
-            revokeUrls(previewUrlsRef.current);
-            previewUrlsRef.current = [];
         };
     }, [scope, videoRef]);
+
+    useEffect(() => {
+        const stamp = { ...stampRef.current };
+        const requestedKey = `${stamp.userId}\n${stamp.authorizationHeader}`;
+        const queue = createThumbnailQueue({
+            fetch: (job, signal) => {
+                const currentApi = apiRef.current;
+                if (!currentApi) {
+                    return Promise.resolve({ kind: 'failed' as const });
+                }
+
+                return fetchSegmentPreview(currentApi, job.segmentId, job.bindingVersion, signal);
+            },
+            stillCurrent: () => keepPreview({
+                requestedKey,
+                currentKey: `${stampRef.current.userId}\n${stampRef.current.authorizationHeader}`,
+                aborted: thumbQueueRef.current !== queue
+            }),
+            onChange: (segmentId, state) => {
+                if (thumbQueueRef.current !== queue) {
+                    return;
+                }
+
+                setThumbs(previous => new Map(previous).set(segmentId, state));
+            }
+        });
+        thumbQueueRef.current = queue;
+        return () => {
+            if (thumbQueueRef.current === queue) {
+                thumbQueueRef.current = undefined;
+            }
+
+            queue.dispose();
+        };
+    }, [scope]);
+
+    useEffect(() => {
+        if (!thumbOrder) {
+            return;
+        }
+
+        const byId = new Map(hitsRef.current.map(hit => [hit.segmentId, hit]));
+        thumbQueueRef.current?.enqueue(thumbOrder.split('\n').map(segmentId => ({
+            segmentId,
+            bindingVersion: byId.get(segmentId)?.bindingVersion
+        })));
+    }, [scope, thumbOrder]);
 
     useEffect(() => {
         return () => {
@@ -438,79 +483,20 @@ export function useEmbeddingVideoSearch(
     }, [videoRef]);
 
     const onPreview = useCallback((segmentId: string) => {
-        const hit = hitsRef.current.find(entry => entry.segmentId === segmentId);
-        const currentApi = apiRef.current;
-        if (!hit || !currentApi) {
-            return;
-        }
-
-        const previewKey = `${scopeRef.current}\n${segmentId}\n${hit.bindingVersion}`;
-        if (previewKeyRef.current === previewKey && !previewAbortRef.current?.isAborted()) return;
-        previewKeyRef.current = previewKey;
-        previewAbortRef.current?.abort();
-        const previewScope = createAbortScope();
-        previewAbortRef.current = previewScope;
-        const stamp = { ...stampRef.current };
-        const requestedKey = `${stamp.userId}\n${stamp.authorizationHeader}`;
-        if (!hit.bindingVersion) {
-            setPreview({ segmentId, status: 'failed' });
-            return;
-        }
-
-        setPreview({ segmentId, status: 'loading' });
-        void fetchSegmentPreview(currentApi, segmentId, hit.bindingVersion, previewScope.signal).then((result) => {
-            const currentKey = `${stampRef.current.userId}\n${stampRef.current.authorizationHeader}`;
-            if (!keepPreview({
-                requestedKey,
-                currentKey,
-                aborted: previewScope.isAborted()
-            })) {
-                return;
-            }
-
-            if (result.kind === 'image') {
-                const url = URL.createObjectURL(result.blob);
-                if (!keepPreview({ requestedKey, currentKey, aborted: previewScope.isAborted() })) {
-                    URL.revokeObjectURL(url);
-                    return;
-                }
-
-                revokeUrls(previewUrlsRef.current);
-                previewUrlsRef.current = [url];
-                setPreview({ segmentId, status: 'image', url });
-                return;
-            }
-
-            previewKeyRef.current = '';
-            if (result.kind === 'aborted') {
-                return;
-            }
-
-            revokeUrls(previewUrlsRef.current);
-            previewUrlsRef.current = [];
-            if (result.kind === 'busy') {
-                setPreview({ segmentId, status: 'busy' });
-                return;
-            }
-
-            setPreview({ segmentId, status: result.kind === 'none' ? 'none' : 'failed' });
-        });
+        thumbQueueRef.current?.prioritize(segmentId);
     }, []);
 
     const retry = useCallback(() => {
         setRetryNonce(value => value + 1);
     }, []);
 
-    const related = view.phase === 'ready' ? view.related.map(toDisplayHit) : [];
-    const weak = view.phase === 'ready' ? view.weak.map(toDisplayHit) : [];
-
     return {
         view,
-        related,
-        weak,
+        ranked,
         cards,
-        weakOpen,
-        toggleWeak,
+        thumbs,
+        moreOpen: weakOpen,
+        toggleMore: toggleWeak,
         onPlay,
         onPreview,
         retry,
@@ -518,7 +504,6 @@ export function useEmbeddingVideoSearch(
         busySegmentId,
         playNote,
         playing,
-        preview,
         mse,
         videoRef
     };
