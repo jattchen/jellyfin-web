@@ -1,13 +1,14 @@
 import { normalizeBindingVersion } from './binding';
 import {
     API_VERSION,
+    COLLAPSED_RUNS_FEATURE,
     GROUPED_VIDEO_FEATURE,
     SEARCH_AVAILABILITY,
     TICKS_PER_SECOND,
     type SearchAvailability
 } from './constants';
 import { guidKey } from './guid';
-import type { SearchHitModel, SegmentDetailModel } from './types';
+import type { HitRun, SearchHitModel, SegmentDetailModel } from './types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -62,6 +63,8 @@ export function parseAvailability(value: unknown): SearchAvailability | undefine
 export interface ParsedCapabilities {
     search: SearchAvailability
     indexComplete: boolean
+    /** Older plugins omit this and keep one row per returned candidate. */
+    collapsedRuns: boolean
 }
 
 export function parseCapabilities(data: unknown): ParsedCapabilities | undefined {
@@ -82,6 +85,8 @@ export function parseCapabilities(data: unknown): ParsedCapabilities | undefined
         return undefined;
     }
 
+    const collapsedRuns = data.features.includes(COLLAPSED_RUNS_FEATURE);
+
     const search = parseAvailability(data.availability.search);
     if (!search) {
         return undefined;
@@ -95,8 +100,40 @@ export function parseCapabilities(data: unknown): ParsedCapabilities | undefined
 
     return {
         search,
-        indexComplete
+        indexComplete,
+        collapsedRuns
     };
+}
+
+/**
+ * A run must wrap the representative. Missing or inverted spans are a contract
+ * failure only when this client asked for collapseRuns.
+ */
+export function parseCollapsedRun(
+    data: unknown,
+    hitStart: number,
+    hitEnd: number
+): HitRun | undefined {
+    if (!isRecord(data)) {
+        return undefined;
+    }
+
+    const startTicks = readSafeInteger(data.startTicks);
+    const endTicks = readSafeInteger(data.endTicks);
+    const memberCount = readSafeInteger(data.memberCount);
+    if (startTicks === undefined || endTicks === undefined || memberCount === undefined) {
+        return undefined;
+    }
+
+    if (memberCount < 1 || startTicks < 0 || endTicks <= startTicks) {
+        return undefined;
+    }
+
+    if (startTicks > hitStart || endTicks < hitEnd) {
+        return undefined;
+    }
+
+    return { startTicks, endTicks, memberCount };
 }
 
 function parseIdentity(data: Record<string, unknown>): Omit<SearchHitModel, 'score' | 'quality'> | undefined {
@@ -169,7 +206,7 @@ function readTranscript(data: Record<string, unknown>): string | undefined | nul
     return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function parseSearchHit(data: unknown): SearchHitModel | undefined {
+export function parseSearchHit(data: unknown, options?: { expectRun?: boolean }): SearchHitModel | undefined {
     if (!isRecord(data)) {
         return undefined;
     }
@@ -180,6 +217,7 @@ export function parseSearchHit(data: unknown): SearchHitModel | undefined {
         return undefined;
     }
 
+    let hit: SearchHitModel;
     if (data.quality === 'candidate') {
         const rawScore = readFiniteNumber(data.rawScore);
         if (score < 0 || rawScore === undefined
@@ -188,15 +226,32 @@ export function parseSearchHit(data: unknown): SearchHitModel | undefined {
             return undefined;
         }
 
-        return { ...identity, score, quality: 'candidate', rawScore,
-            representation: data.representation, candidateId: data.candidateId };
+        hit = {
+            ...identity,
+            score,
+            quality: 'candidate',
+            rawScore,
+            representation: data.representation,
+            candidateId: data.candidateId
+        };
+    } else {
+        hit = {
+            ...identity,
+            score,
+            quality: data.quality
+        };
     }
 
-    return {
-        ...identity,
-        score,
-        quality: data.quality
-    };
+    if (!options?.expectRun) {
+        return hit;
+    }
+
+    const run = parseCollapsedRun(data.run, hit.startTicks, hit.endTicks);
+    if (!run) {
+        return undefined;
+    }
+
+    return { ...hit, run };
 }
 
 export function parseSegmentDetail(data: unknown): SegmentDetailModel | undefined {
@@ -245,7 +300,7 @@ export interface ParsedSearchBody {
     hits: SearchHitModel[]
 }
 
-export function parseSearchBody(data: unknown): ParsedSearchBody | undefined {
+export function parseSearchBody(data: unknown, options?: { expectRun?: boolean }): ParsedSearchBody | undefined {
     if (!isRecord(data) || data.apiVersion !== API_VERSION || typeof data.queryId !== 'string' || !guidKey(data.queryId)) {
         return undefined;
     }
@@ -272,7 +327,7 @@ export function parseSearchBody(data: unknown): ParsedSearchBody | undefined {
     const hits: SearchHitModel[] = [];
     const seen = new Set<string>();
     for (const entry of data.results) {
-        const hit = parseSearchHit(entry);
+        const hit = parseSearchHit(entry, options);
         if (!hit) {
             return undefined;
         }

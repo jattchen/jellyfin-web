@@ -2,7 +2,7 @@ import React, { type FC, useCallback } from 'react';
 
 import type { SegmentCopy } from './copy';
 import MomentThumb from './MomentThumb';
-import { formatTicks } from './presentation';
+import { formatTicks, mergedRunText } from './presentation';
 import type { RankedHit, ThumbState } from './types';
 
 interface MomentRowProps {
@@ -31,6 +31,8 @@ const MomentRow: FC<MomentRowProps> = ({ hit, title, tag, thumb, current, busy, 
     if (current) classes.push('is-current');
     const meta = [tag, copy.kind(hit.representation)];
     if (hit.partial) meta.push(copy.partialItem);
+    const runNote = mergedRunText(hit, copy.merged);
+    const accessible = `${copy.rank(hit.rank)}，${copy.playNamed(title, hit.range, hit.partial)}`;
 
     return (
         <li className='evsItem'>
@@ -42,7 +44,7 @@ const MomentRow: FC<MomentRowProps> = ({ hit, title, tag, thumb, current, busy, 
                 onPointerEnter={onFocus}
                 aria-current={current ? 'true' : undefined}
                 aria-busy={busy}
-                aria-label={`${copy.rank(hit.rank)}，${copy.playNamed(title, hit.range, hit.partial)}`}
+                aria-label={runNote ? `${accessible}，${runNote}` : accessible}
                 aria-describedby={hit.transcript ? quoteId : undefined}
             >
                 <span className='evsRank' aria-hidden='true'>{hit.rank}</span>
@@ -65,7 +67,10 @@ const MomentRow: FC<MomentRowProps> = ({ hit, title, tag, thumb, current, busy, 
                         <span className='evsTime'>{hit.range}</span>
                     </span>
                     {hit.transcript && <span id={quoteId} className='evsQuote'>{hit.transcript}</span>}
-                    <span className='evsMeta'>{meta.join(' · ')}</span>
+                    <span className='evsMeta'>
+                        {meta.join(' · ')}
+                        {runNote && <> · <span className='evsRunNote'>{runNote}</span></>}
+                    </span>
                 </span>
             </button>
         </li>

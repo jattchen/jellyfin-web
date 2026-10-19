@@ -6,6 +6,8 @@ export const SEARCH_PATH = `${API_PREFIX}/search`;
 export const PLAYBACK_PATH = `${API_PREFIX}/playback`;
 export const PLAYBACK_PREFIX = `${PLAYBACK_PATH}/`;
 export const GROUPED_VIDEO_FEATURE = 'grouped-video-v1';
+/** Server collapses touching candidates after its existing per-film cap. */
+export const COLLAPSED_RUNS_FEATURE = 'collapsed-runs-v1';
 /** Request limit is the maximum number of films, not hit rows. */
 export const RESULT_LIMIT = 3;
 export const VIDEO_LIMIT = 3;

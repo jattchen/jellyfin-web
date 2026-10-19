@@ -7,6 +7,9 @@ export interface SegmentCopy {
     title: string
     summary: (films: number, moments: number) => string
     caveat: string
+    /** Shown only when the server collapsed touching candidates. */
+    collapsedNote: string
+    merged: (count: number, range: string) => string
     searching: string
     checkingPlayer: string
     playerUnsupported: string
@@ -40,6 +43,8 @@ const zh: SegmentCopy = {
     title: '相关片段',
     summary: (films, moments) => `${films} 部影片中的 ${moments} 个候选，按接近程度排序`,
     caveat: '候选可能有误，“最接近”不代表一定匹配。点任一片段，从原片该处继续播放。',
+    collapsedNote: '同一部里时间相连的候选，只列名次最高的一段。',
+    merged: (count, range) => `已合并相连的 ${count} 段 · ${range}`,
     searching: '正在查找画面与对白…',
     checkingPlayer: '正在确认这个浏览器能不能在页面里播放。',
     playerUnsupported: '这个浏览器不能在页面里直接播放。可以改用原来的播放器，从记下的时间继续。',
@@ -157,6 +162,8 @@ const en: SegmentCopy = {
     title: 'Related moments',
     summary: (films, moments) => `${moments} candidates from ${films} ${films === 1 ? 'title' : 'titles'}, closest first`,
     caveat: 'Candidates may be wrong; “Closest” is not a guaranteed match. Choose any moment to continue the full video from there.',
+    collapsedNote: 'Connected moments in one title are listed once, using the highest-ranked moment.',
+    merged: (count, range) => `Merged ${count} connected moments · ${range}`,
     searching: 'Looking for picture and dialogue…',
     checkingPlayer: 'Checking whether this browser can play on the page.',
     playerUnsupported: 'This browser cannot play on the page. The original player can continue from the noted time.',

@@ -1,6 +1,6 @@
 import { HITS_PER_VIDEO, TICKS_PER_SECOND, TOP_VISIBLE, VIDEO_LIMIT } from './constants';
 import { guidKey } from './guid';
-import type { DisplayHit, NoticeCode, RankedHit, SearchHitModel } from './types';
+import type { DisplayHit, HitRun, NoticeCode, RankedHit, SearchHitModel } from './types';
 
 export function formatTicks(ticks: number): string {
     const total = Math.floor(ticks / TICKS_PER_SECOND);
@@ -29,8 +29,33 @@ export function toDisplayHit(hit: SearchHitModel): DisplayHit {
         endTicks: hit.endTicks,
         transcript: hit.transcript,
         score: hit.score,
-        representation: hit.representation
+        representation: hit.representation,
+        run: hit.run
     };
+}
+
+/** Caption for a server run. A single member stays the plain representative row. */
+export function mergedRunText(
+    hit: { run?: HitRun },
+    label: (count: number, range: string) => string
+): string | undefined {
+    if (!hit.run || hit.run.memberCount <= 1) {
+        return undefined;
+    }
+
+    return label(hit.run.memberCount, formatRange(hit.run.startTicks, hit.run.endTicks));
+}
+
+/** Faint timeline bed for a multi-member run. The flag still marks only the representative. */
+export function collapsedRunBand(
+    hit: { run?: HitRun },
+    durationTicks: number | undefined
+): { left: number; width: number } | undefined {
+    if (!hit.run || hit.run.memberCount <= 1) {
+        return undefined;
+    }
+
+    return hitBand(hit.run.startTicks, hit.run.endTicks, durationTicks);
 }
 
 /**
