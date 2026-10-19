@@ -26,6 +26,8 @@ export interface SearchHitModel extends SegmentIdentity {
     transcript?: string
     /** Present only when the server declared collapsed-runs-v1 and sent a valid run. */
     run?: HitRun
+    /** Present only when the server declared similar-segments-v1. */
+    similarAvailable?: boolean
 }
 
 /** GET segments does not recompute similarity. Its score is not the search score. */
@@ -73,6 +75,8 @@ export interface ReadySegmentView {
     notices: NoticeCode[]
     /** True when this response was requested with collapseRuns. */
     collapsedRuns?: boolean
+    /** True when capabilities declared similar-segments-v1. */
+    similarSegments?: boolean
 }
 
 export type SegmentViewState =
@@ -106,6 +110,7 @@ export interface DisplayHit {
     score: number
     representation?: 'jointAudioVideo' | 'transcriptText'
     run?: HitRun
+    similarAvailable?: boolean
 }
 
 export interface RankedHit extends DisplayHit {

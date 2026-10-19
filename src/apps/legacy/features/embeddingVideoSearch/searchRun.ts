@@ -169,7 +169,8 @@ export async function runSegmentSearch(
                 related: [],
                 weak: [],
                 notices,
-                collapsedRuns: parsedCapabilities.collapsedRuns
+                collapsedRuns: parsedCapabilities.collapsedRuns,
+                similarSegments: parsedCapabilities.similarSegments
             }
         };
     }
@@ -189,7 +190,10 @@ export async function runSegmentSearch(
         return { kind: 'problem', problem: 'transport' };
     }
 
-    const body = parseSearchBody(searched.data, { expectRun: parsedCapabilities.collapsedRuns });
+    const body = parseSearchBody(searched.data, {
+        expectRun: parsedCapabilities.collapsedRuns,
+        expectSimilar: parsedCapabilities.similarSegments
+    });
     if (!body || !acceptsQuery({
         expectedClientQueryId: input.clientQueryId,
         responseClientQueryId: body.clientQueryId
@@ -218,7 +222,8 @@ export async function runSegmentSearch(
                 indexComplete: body.indexComplete,
                 relatedCount: parts.related.length
             }),
-            collapsedRuns: parsedCapabilities.collapsedRuns
+            collapsedRuns: parsedCapabilities.collapsedRuns,
+            similarSegments: parsedCapabilities.similarSegments
         }
     };
 }

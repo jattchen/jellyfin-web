@@ -15,6 +15,7 @@ interface MomentStageProps {
     videoRef: RefObject<HTMLVideoElement>
     copy: SegmentCopy
     onPlay: (segmentId: string) => void
+    onFindSimilar?: (segmentId: string) => void
     children?: ReactNode
 }
 
@@ -22,8 +23,11 @@ interface WebkitVideo extends HTMLVideoElement {
     webkitEnterFullscreen?: () => void
 }
 
-const MomentStage: FC<MomentStageProps> = ({ hit, title, thumb, playing, busy, mse, videoRef, copy, onPlay, children }) => {
+const MomentStage: FC<MomentStageProps> = ({ hit, title, thumb, playing, busy, mse, videoRef, copy, onPlay, onFindSimilar, children }) => {
     const play = useCallback(() => onPlay(hit.segmentId), [hit.segmentId, onPlay]);
+    const findSimilar = useCallback(() => {
+        onFindSimilar?.(hit.segmentId);
+    }, [hit.segmentId, onFindSimilar]);
     const fullscreen = useCallback(() => {
         const video = videoRef.current as WebkitVideo | null;
         if (!video) {
@@ -75,6 +79,19 @@ const MomentStage: FC<MomentStageProps> = ({ hit, title, thumb, playing, busy, m
                     {top && <span className='evsBadge'>{copy.best}</span>}
                     <span className='evsMeta'>{copy.rank(hit.rank)} · {copy.kind(hit.representation)}</span>
                     <span className='evsNowActions'>
+                        {onFindSimilar && (
+                            <button
+                                type='button'
+                                className='evsSimilar evsSimilar-stage'
+                                onClick={findSimilar}
+                                disabled={hit.similarAvailable !== true}
+                                title={hit.similarAvailable === true ? copy.findSimilar : copy.similarDisabled}
+                                aria-label={hit.rank >= 1 ? copy.findSimilarNamed(hit.rank) : copy.findSimilar}
+                            >
+                                <span className='material-icons' aria-hidden='true'>image_search</span>
+                                <span className='evsSimilarLabel'>{copy.findSimilar}</span>
+                            </button>
+                        )}
                         {mse === true && (
                             <button type='button' className='evsIconButton' onClick={fullscreen} disabled={!playing} title={copy.fullscreen} aria-label={copy.fullscreen}>
                                 <span className='material-icons' aria-hidden='true'>fullscreen</span>

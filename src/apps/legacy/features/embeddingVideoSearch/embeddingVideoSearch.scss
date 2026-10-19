@@ -58,6 +58,88 @@
     margin: 0.5rem 0 0;
 }
 
+.evsBack {
+    display: inline-flex;
+    gap: 0.25rem;
+    align-items: center;
+    margin: 0 0 0.75rem;
+    padding: 0.25rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--evs-accent-light);
+    font: inherit;
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+
+.evsBack:focus-visible {
+    outline: 2px solid var(--evs-accent);
+    outline-offset: 2px;
+}
+
+.evsReference {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin: 0.75rem 0;
+    min-width: 0;
+}
+
+.evsRefThumb {
+    flex: none;
+    width: 6.5rem;
+}
+
+.evsRefBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.evsRefTitle {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0;
+    font-weight: 600;
+}
+
+.evsRefName {
+    min-width: 0;
+}
+
+.evsRefMeta {
+    margin: 0;
+    color: var(--evs-muted);
+    font-size: 0.875rem;
+}
+
+.evsRefPlay {
+    align-self: flex-start;
+    margin: 0.125rem 0 0;
+    padding: 0.25rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--evs-accent-light);
+    font: inherit;
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+
+.evsRefPlay:focus-visible {
+    outline: 2px solid var(--evs-accent);
+    outline-offset: 2px;
+}
+
+.evsLive {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+
 /* Two-column workspace */
 
 .evsLayout {
@@ -338,6 +420,33 @@
     pointer-events: none;
 }
 
+.evsRefMark {
+    position: absolute;
+    bottom: 0.35rem;
+    z-index: 2;
+    height: 0.3rem;
+    box-sizing: border-box;
+    border: 2px solid var(--evs-accent-light);
+    border-radius: 0.15rem;
+    background: transparent;
+    pointer-events: none;
+}
+
+.evsRefFlag {
+    position: absolute;
+    bottom: 0.9rem;
+    z-index: 2;
+    padding: 0 0.25rem;
+    border: 1px solid var(--evs-accent);
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--evs-accent-light);
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
 .evsBand.is-current {
     background: #fff;
 }
@@ -439,6 +548,52 @@
 
 .evsItem {
     margin: 0;
+}
+
+.evsItemRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+}
+
+.evsItemRow.has-similar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem;
+}
+
+.evsSimilar {
+    display: inline-flex;
+    gap: 0.25rem;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0.375rem 0.625rem;
+    border: 0;
+    border-radius: var(--evs-radius);
+    background: transparent;
+    color: var(--evs-text);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.evsSimilar:focus-visible {
+    outline: 2px solid var(--evs-accent);
+    outline-offset: 1px;
+}
+
+.evsSimilar:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.evsSimilar:hover:not(:disabled) {
+    background: var(--evs-hover);
+}
+
+.evsSimilar .material-icons {
+    font-size: 1.25rem;
 }
 
 .evsRow {
@@ -743,6 +898,85 @@
         bottom: 0.75rem;
         inset-inline-start: 0.75rem;
         font-size: 0.875rem;
+    }
+
+    .evsSimilar:not(.evsSimilar-stage) {
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0;
+    }
+
+    .evsSimilar:not(.evsSimilar-stage) .evsSimilarLabel {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .evs.is-similar {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .evs.is-similar .evsHead,
+    .evs.is-similar .evsLayout,
+    .evs.is-similar .evsStage {
+        display: contents;
+    }
+
+    .evs.is-similar .evsTitle,
+    .evs.is-similar .evsSummary,
+    .evs.is-similar .evsCaveat,
+    .evs.is-similar .evsNotice,
+    .evs.is-similar .evsRetry {
+        order: 0;
+    }
+
+    .evs.is-similar .evsPlayer {
+        order: 1;
+    }
+
+    .evs.is-similar .evsBack,
+    .evs.is-similar .evsReference {
+        order: 2;
+    }
+
+    .evs.is-similar .evsTimeline,
+    .evs.is-similar .evsNow {
+        order: 3;
+    }
+
+    .evs.is-similar .evsList {
+        order: 4;
+    }
+
+    .evsRefThumb {
+        width: 4rem;
+    }
+
+    .evsRefBody {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .evsRefTitle {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .evsRefName,
+    .evsRefMeta {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .evsRefPlay {
+        flex: none;
+        margin: 0;
     }
 }
 
