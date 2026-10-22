@@ -3,6 +3,7 @@ import {
     API_VERSION,
     COLLAPSED_RUNS_FEATURE,
     GROUPED_VIDEO_FEATURE,
+    SIMILAR_SEGMENTS_FEATURE,
     SEARCH_AVAILABILITY,
     TICKS_PER_SECOND,
     type SearchAvailability
@@ -65,6 +66,8 @@ export interface ParsedCapabilities {
     indexComplete: boolean
     /** Older plugins omit this and keep one row per returned candidate. */
     collapsedRuns: boolean
+    /** Older plugins omit this and hide Find similar. */
+    similarSegments: boolean
 }
 
 export function parseCapabilities(data: unknown): ParsedCapabilities | undefined {
@@ -86,6 +89,7 @@ export function parseCapabilities(data: unknown): ParsedCapabilities | undefined
     }
 
     const collapsedRuns = data.features.includes(COLLAPSED_RUNS_FEATURE);
+    const similarSegments = data.features.includes(SIMILAR_SEGMENTS_FEATURE);
 
     const search = parseAvailability(data.availability.search);
     if (!search) {
@@ -101,7 +105,8 @@ export function parseCapabilities(data: unknown): ParsedCapabilities | undefined
     return {
         search,
         indexComplete,
-        collapsedRuns
+        collapsedRuns,
+        similarSegments
     };
 }
 
@@ -206,7 +211,10 @@ function readTranscript(data: Record<string, unknown>): string | undefined | nul
     return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function parseSearchHit(data: unknown, options?: { expectRun?: boolean }): SearchHitModel | undefined {
+export function parseSearchHit(
+    data: unknown,
+    options?: { expectRun?: boolean; expectSimilar?: boolean }
+): SearchHitModel | undefined {
     if (!isRecord(data)) {
         return undefined;
     }
@@ -242,16 +250,24 @@ export function parseSearchHit(data: unknown, options?: { expectRun?: boolean })
         };
     }
 
-    if (!options?.expectRun) {
-        return hit;
+    if (options?.expectRun) {
+        const run = parseCollapsedRun(data.run, hit.startTicks, hit.endTicks);
+        if (!run) {
+            return undefined;
+        }
+
+        hit = { ...hit, run };
     }
 
-    const run = parseCollapsedRun(data.run, hit.startTicks, hit.endTicks);
-    if (!run) {
-        return undefined;
+    if (options?.expectSimilar) {
+        if (typeof data.similarAvailable !== 'boolean') {
+            return undefined;
+        }
+
+        hit = { ...hit, similarAvailable: data.similarAvailable };
     }
 
-    return { ...hit, run };
+    return hit;
 }
 
 export function parseSegmentDetail(data: unknown): SegmentDetailModel | undefined {
@@ -300,7 +316,10 @@ export interface ParsedSearchBody {
     hits: SearchHitModel[]
 }
 
-export function parseSearchBody(data: unknown, options?: { expectRun?: boolean }): ParsedSearchBody | undefined {
+export function parseSearchBody(
+    data: unknown,
+    options?: { expectRun?: boolean; expectSimilar?: boolean }
+): ParsedSearchBody | undefined {
     if (!isRecord(data) || data.apiVersion !== API_VERSION || typeof data.queryId !== 'string' || !guidKey(data.queryId)) {
         return undefined;
     }

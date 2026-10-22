@@ -1,6 +1,6 @@
 import type { CollectionType } from '@jellyfin/sdk/lib/generated-client/models/collection-type';
-import React, { type FC, useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { type FC, useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import EmbeddingVideoSearchSection from 'apps/legacy/features/embeddingVideoSearch/EmbeddingVideoSearchSection';
 import { segmentCopy } from 'apps/legacy/features/embeddingVideoSearch/copy';
@@ -15,6 +15,7 @@ import globalize, { getCurrentLocale } from 'lib/globalize';
 const COLLECTION_TYPE_PARAM = 'collectionType';
 const PARENT_ID_PARAM = 'parentId';
 const QUERY_PARAM = 'query';
+const SIMILAR_PARAM = 'similar';
 
 interface NameMatchesProps {
     parentId?: string
@@ -60,20 +61,63 @@ const NameMatches: FC<NameMatchesProps> = ({ parentId, collectionType, query, ti
 };
 
 const Search: FC = () => {
-    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const parentIdQuery = searchParams.get(PARENT_ID_PARAM) || undefined;
     const collectionTypeQuery = (searchParams.get(COLLECTION_TYPE_PARAM) || undefined) as CollectionType | undefined;
-    const [ query, setQuery ] = useSearchParam(QUERY_PARAM);
+    const similarParam = searchParams.get(SIMILAR_PARAM)?.trim() || undefined;
+    const [ query ] = useSearchParam(QUERY_PARAM);
     const [ draft, setDraft ] = useState(query);
+    const pushedSimilarRef = useRef(false);
     useEffect(() => {
         setDraft(query);
     }, [query]);
     const copy = segmentCopy(getCurrentLocale());
+    const onSimilarChange = useCallback((next: string | undefined, history: 'push' | 'replace') => {
+        if (history === 'push') {
+            pushedSimilarRef.current = true;
+        }
+
+        if (!next) {
+            pushedSimilarRef.current = false;
+        }
+
+        setSearchParams((previous) => {
+            const params = new URLSearchParams(previous);
+            if (next) {
+                params.set(SIMILAR_PARAM, next);
+            } else {
+                params.delete(SIMILAR_PARAM);
+            }
+
+            return params;
+        }, { replace: history !== 'push' });
+    }, [setSearchParams]);
+    const onSimilarBack = useCallback(() => {
+        if (pushedSimilarRef.current) {
+            pushedSimilarRef.current = false;
+            navigate(-1);
+            return;
+        }
+
+        onSimilarChange(undefined, 'replace');
+    }, [navigate, onSimilarChange]);
     const submitSearch = useCallback((value: string) => {
         const submitted = value.trim();
         setDraft(submitted);
-        setQuery(submitted);
-    }, [setQuery]);
+        pushedSimilarRef.current = false;
+        setSearchParams((previous) => {
+            const params = new URLSearchParams(previous);
+            if (submitted) {
+                params.set(QUERY_PARAM, submitted);
+            } else {
+                params.delete(QUERY_PARAM);
+            }
+
+            params.delete(SIMILAR_PARAM);
+            return params;
+        }, { replace: true });
+    }, [setSearchParams]);
 
     return (
         <Page
@@ -87,7 +131,7 @@ const Search: FC = () => {
                 onSubmit={submitSearch}
                 submitLabel={copy.searchAction}
             />
-            {!query.trim() && (
+            {!query.trim() && !similarParam && (
                 <SearchSuggestions
                     parentId={parentIdQuery}
                 />
@@ -96,8 +140,11 @@ const Search: FC = () => {
                 query={query}
                 draft={draft}
                 parentId={parentIdQuery}
+                similarSegmentId={similarParam}
+                onSimilarChange={onSimilarChange}
+                onSimilarBack={onSimilarBack}
             />
-            {query.trim() && (
+            {query.trim() && !similarParam && (
                 <NameMatches
                     parentId={parentIdQuery}
                     collectionType={collectionTypeQuery}

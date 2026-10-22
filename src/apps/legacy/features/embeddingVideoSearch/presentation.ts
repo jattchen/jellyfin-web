@@ -30,7 +30,8 @@ export function toDisplayHit(hit: SearchHitModel): DisplayHit {
         transcript: hit.transcript,
         score: hit.score,
         representation: hit.representation,
-        run: hit.run
+        run: hit.run,
+        similarAvailable: hit.similarAvailable
     };
 }
 

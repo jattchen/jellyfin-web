@@ -22,6 +22,8 @@ interface MomentTimelineProps {
     copy: SegmentCopy
     onPlay: (segmentId: string) => void
     onPreview: (segmentId: string) => void
+    /** Hollow mark for the joint window actually used as the similar reference. */
+    referenceMark?: { left: number; width: number; label: string }
 }
 
 function useTrackWidth() {
@@ -110,7 +112,8 @@ const MomentTimeline: FC<MomentTimelineProps> = ({
     thumbs,
     copy,
     onPlay,
-    onPreview
+    onPreview,
+    referenceMark
 }) => {
     const [trackRef, trackWidth] = useTrackWidth();
     const [tipId, setTipId] = useState<string | undefined>(undefined);
@@ -139,6 +142,20 @@ const MomentTimeline: FC<MomentTimelineProps> = ({
                 style={{ height: `${trackRem}rem` }}
             >
                 <span className='evsTrackRail' />
+                {referenceMark && (
+                    <>
+                        <span
+                            className='evsRefMark'
+                            style={{ left: `${referenceMark.left * 100}%`, width: `max(3px, ${referenceMark.width * 100}%)` }}
+                        />
+                        <span
+                            className='evsRefFlag'
+                            style={{ left: `${(referenceMark.left + referenceMark.width / 2) * 100}%` }}
+                        >
+                            {referenceMark.label}
+                        </span>
+                    </>
+                )}
                 {playhead !== undefined && (
                     <>
                         <span className='evsTrackPlayed' style={{ width: `${playhead * 100}%` }} />
