@@ -1,4 +1,5 @@
-import React, { type ChangeEvent, type FC, useCallback, useRef } from 'react';
+import React, { type ChangeEvent, type FC, type KeyboardEvent, useCallback, useRef } from 'react';
+import { enterCommitsSearch } from 'apps/legacy/features/embeddingVideoSearch/submitQuery';
 import AlphaPicker from 'components/alphaPicker/AlphaPickerComponent';
 import Input from 'elements/emby-input/Input';
 import globalize from 'lib/globalize';
@@ -11,10 +12,14 @@ import './searchfields.scss';
 interface SearchFieldsProps {
     query: string,
     onSearch?: (query: string) => void
+    onSubmit?: (query: string) => void
+    submitLabel?: string
 }
 
 const SearchFields: FC<SearchFieldsProps> = ({
     onSearch = () => { /* no-op */ },
+    onSubmit,
+    submitLabel,
     query
 }) => {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -33,6 +38,29 @@ const SearchFields: FC<SearchFieldsProps> = ({
     const onChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         onSearch(e.target.value);
     }, [ onSearch ]);
+
+    const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+        if (!onSubmit) {
+            return;
+        }
+
+        const legacy = event.nativeEvent as unknown as { keyCode?: number };
+        const keyCode = legacy.keyCode;
+        if (!enterCommitsSearch({
+            key: event.key,
+            isComposing: event.nativeEvent.isComposing,
+            keyCode: typeof keyCode === 'number' ? keyCode : undefined
+        })) {
+            return;
+        }
+
+        event.preventDefault();
+        onSubmit(event.currentTarget.value);
+    }, [onSubmit]);
+
+    const onSubmitClick = useCallback(() => {
+        onSubmit?.(inputRef.current?.value ?? query);
+    }, [onSubmit, query]);
 
     return (
         <div className='padded-left padded-right searchFields'>
@@ -54,8 +82,14 @@ const SearchFields: FC<SearchFieldsProps> = ({
                         autoFocus
                         value={query}
                         onChange={onChange}
+                        onKeyDown={onKeyDown}
                     />
                 </div>
+                {onSubmit && (
+                    <button type='button' className='emby-button raised searchfields-submit' onClick={onSubmitClick}>
+                        {submitLabel}
+                    </button>
+                )}
             </div>
             {layoutManager.tv && !browser.tv
                 && <AlphaPicker onAlphaPicked={onAlphaPicked} />
