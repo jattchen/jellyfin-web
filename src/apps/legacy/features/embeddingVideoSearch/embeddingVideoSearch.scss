@@ -1,3 +1,5 @@
+@use '../../../../styles/mixins' as *;
+
 .evs {
     --evs-accent: var(--jf-palette-primary-main, #00a4dc);
     --evs-accent-rgb: var(--jf-palette-primary-mainChannel, 0 164 220);
@@ -566,8 +568,11 @@
     gap: 0.25rem;
     align-items: center;
     justify-content: center;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+
+    /* 2.75rem is under 44px at the 93% root font. Floor at 44px and still grow with rem. */
+    @include conditional-max(min-width, 2.75rem, 44px);
+    @include conditional-max(min-height, 2.75rem, 44px);
+
     padding: 0.375rem 0.625rem;
     border: 0;
     border-radius: var(--evs-radius);
@@ -901,8 +906,9 @@
     }
 
     .evsSimilar:not(.evsSimilar-stage) {
-        width: 2.75rem;
-        height: 2.75rem;
+        @include conditional-max(width, 2.75rem, 44px);
+        @include conditional-max(height, 2.75rem, 44px);
+
         padding: 0;
     }
 
