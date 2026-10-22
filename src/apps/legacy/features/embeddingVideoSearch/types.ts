@@ -7,6 +7,13 @@ export interface SegmentIdentity {
     indexComplete: boolean
 }
 
+/** Server-owned span of touching candidates. The hit itself stays the representative. */
+export interface HitRun {
+    startTicks: number
+    endTicks: number
+    memberCount: number
+}
+
 /** Score and quality come from POST search and stay on this object. */
 export interface SearchHitModel extends SegmentIdentity {
     score: number
@@ -17,6 +24,8 @@ export interface SearchHitModel extends SegmentIdentity {
     /** SHA-256 stamp of media, content, time, candidate, and representation. */
     bindingVersion?: string
     transcript?: string
+    /** Present only when the server declared collapsed-runs-v1 and sent a valid run. */
+    run?: HitRun
 }
 
 /** GET segments does not recompute similarity. Its score is not the search score. */
@@ -62,6 +71,8 @@ export interface ReadySegmentView {
     related: SearchHitModel[]
     weak: SearchHitModel[]
     notices: NoticeCode[]
+    /** True when this response was requested with collapseRuns. */
+    collapsedRuns?: boolean
 }
 
 export type SegmentViewState =
@@ -94,6 +105,7 @@ export interface DisplayHit {
     /** Reference score kept for ordering only; never rendered. */
     score: number
     representation?: 'jointAudioVideo' | 'transcriptText'
+    run?: HitRun
 }
 
 export interface RankedHit extends DisplayHit {

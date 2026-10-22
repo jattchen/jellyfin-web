@@ -20,6 +20,8 @@ export interface SearchRunInput {
     parentId?: string
     clientQueryId: string
     signal: AbortSignal
+    /** Set only after capabilities declare collapsed-runs-v1. */
+    collapseRuns?: boolean
 }
 
 export type SearchRunResult =
@@ -108,6 +110,9 @@ export function searchBody(input: SearchRunInput): Record<string, unknown> {
         groupByVideo: true,
         clientQueryId: input.clientQueryId
     };
+    if (input.collapseRuns) {
+        body.collapseRuns = true;
+    }
     const parentId = input.parentId?.trim();
     if (parentId) {
         body.parentId = parentId;
@@ -163,7 +168,8 @@ export async function runSegmentSearch(
                 indexComplete: parsedCapabilities.indexComplete,
                 related: [],
                 weak: [],
-                notices
+                notices,
+                collapsedRuns: parsedCapabilities.collapsedRuns
             }
         };
     }
@@ -171,7 +177,7 @@ export async function runSegmentSearch(
     const searched = await receive(transport, {
         method: 'POST',
         path: SEARCH_PATH,
-        body: searchBody(input),
+        body: searchBody({ ...input, collapseRuns: parsedCapabilities.collapsedRuns }),
         timeoutMs: SEARCH_TIMEOUT_MS,
         signal: input.signal
     });
@@ -183,7 +189,7 @@ export async function runSegmentSearch(
         return { kind: 'problem', problem: 'transport' };
     }
 
-    const body = parseSearchBody(searched.data);
+    const body = parseSearchBody(searched.data, { expectRun: parsedCapabilities.collapsedRuns });
     if (!body || !acceptsQuery({
         expectedClientQueryId: input.clientQueryId,
         responseClientQueryId: body.clientQueryId
@@ -211,7 +217,8 @@ export async function runSegmentSearch(
                 availability,
                 indexComplete: body.indexComplete,
                 relatedCount: parts.related.length
-            })
+            }),
+            collapsedRuns: parsedCapabilities.collapsedRuns
         }
     };
 }

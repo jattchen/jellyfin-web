@@ -2,7 +2,7 @@ import React, { type FC, useCallback, useEffect, useState } from 'react';
 
 import type { SegmentCopy } from './copy';
 import MomentThumb from './MomentThumb';
-import { formatTicks, layoutTimeline, playheadRatio } from './presentation';
+import { collapsedRunBand, formatTicks, layoutTimeline, playheadRatio } from './presentation';
 import type { RankedHit, ThumbState } from './types';
 
 /** Mark head width in px; lanes are recomputed from the real track width. */
@@ -53,12 +53,13 @@ interface MarkProps {
     stem: number
     current: boolean
     label: string
+    runBand?: { left: number; width: number }
     onPlay: (segmentId: string) => void
     onPreview: (segmentId: string) => void
     onTip: (segmentId: string | undefined) => void
 }
 
-const Mark: FC<MarkProps> = ({ hit, left, width, lane, stem, current, label, onPlay, onPreview, onTip }) => {
+const Mark: FC<MarkProps> = ({ hit, left, width, lane, stem, current, label, runBand, onPlay, onPreview, onTip }) => {
     const show = useCallback(() => {
         onPreview(hit.segmentId);
         onTip(hit.segmentId);
@@ -68,6 +69,12 @@ const Mark: FC<MarkProps> = ({ hit, left, width, lane, stem, current, label, onP
 
     return (
         <>
+            {runBand && (
+                <span
+                    className='evsRunBand'
+                    style={{ left: `${runBand.left * 100}%`, width: `max(3px, ${runBand.width * 100}%)` }}
+                />
+            )}
             <span
                 className={current ? 'evsBand is-current' : 'evsBand'}
                 style={{ left: `${left * 100}%`, width: `max(3px, ${width * 100}%)` }}
@@ -148,6 +155,7 @@ const MomentTimeline: FC<MomentTimelineProps> = ({
                         stem={trackRem - RAIL_REM - ((lanes - 1 - lane) * LANE_REM + HEAD_REM)}
                         current={hit.segmentId === currentId}
                         label={`${copy.rank(hit.rank)}，${copy.playNamed(title, hit.range, hit.partial)}`}
+                        runBand={collapsedRunBand(hit, durationTicks)}
                         onPlay={onPlay}
                         onPreview={onPreview}
                         onTip={setTipId}

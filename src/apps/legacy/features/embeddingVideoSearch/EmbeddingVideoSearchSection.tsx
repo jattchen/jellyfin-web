@@ -108,6 +108,9 @@ const EmbeddingVideoSearchSection: FC<EmbeddingVideoSearchSectionProps> = ({ que
                     <p className='evsSummary'>{copy.summary(filmKeys.size, ranked.length)}</p>
                 )}
                 <p className='evsCaveat'>{copy.caveat}</p>
+                {model.view.phase === 'ready' && model.view.collapsedRuns && ranked.length > 0 && (
+                    <p className='evsCaveat'>{copy.collapsedNote}</p>
+                )}
                 {draft !== undefined && isUnsubmitted(draft, query) && (
                     <p className='evsNotice is-attention' role='status'>{copy.unsubmitted}</p>
                 )}

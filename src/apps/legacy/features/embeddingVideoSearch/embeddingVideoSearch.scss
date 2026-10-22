@@ -308,7 +308,8 @@
 
 .evsTrackRail,
 .evsTrackPlayed,
-.evsBand {
+.evsBand,
+.evsRunBand {
     position: absolute;
     bottom: 0.35rem;
     height: 0.3rem;
@@ -329,6 +330,12 @@
 .evsBand {
     z-index: 1;
     background: var(--evs-accent);
+}
+
+.evsRunBand {
+    z-index: 0;
+    background: rgb(var(--evs-accent-rgb) / 0.32);
+    pointer-events: none;
 }
 
 .evsBand.is-current {
@@ -524,6 +531,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.evsRunNote {
+    font-weight: 400;
+}
+
+.evsRow .evsMeta:has(.evsRunNote) {
+    white-space: normal;
 }
 
 .evsMore {
